@@ -2,9 +2,10 @@ import { AfterViewInit, ChangeDetectionStrategy, Component, OnInit, ViewChild } 
 import { NgScrollbar } from 'ngx-scrollbar';
 import { v4 as uuidv4 } from 'uuid';
 
-interface IUser {
+export interface IUser {
     id: string;
     name: string;
+    isEditting: boolean;
 }
 
 @Component({
@@ -17,19 +18,21 @@ export class AppComponent implements OnInit, AfterViewInit {
     @ViewChild(NgScrollbar) scrollRef: NgScrollbar;
     length = 20;
     users: IUser[];
-    scrollHeight: number;
     loading = false;
     ngOnInit(): void {
         this.users = Array.from( { length: this.length } ).map( ( _, i ) => {
             const id = uuidv4();
-            return { id, name: `User ${ i + 1 }`}
+            return { 
+                id, 
+                name: `User ${ i + 1 }`,
+                isEditting: false
+            }
         } );
     }
 
     ngAfterViewInit(): void {
         this.scrollRef.scrolled.subscribe( ( event: any ) => {
             const elem = event.target;
-            this.scrollHeight = elem.scrollHeight;
             if ( elem.scrollTop + elem.clientHeight >= elem.scrollHeight ) {
                 this.createUsers();
             }
@@ -37,12 +40,13 @@ export class AppComponent implements OnInit, AfterViewInit {
     }
 
     addUser(): void {
-        this.users.push( { 
+        this.users.unshift( { 
             id: uuidv4(),
-            name: `User added`
+            name: '',
+            isEditting: true
         } );
         this.scrollRef.scrollTo( {
-            top: 100
+            top: 0
         } )
     }
 
@@ -51,12 +55,21 @@ export class AppComponent implements OnInit, AfterViewInit {
         setTimeout( () => {
             const newUsers = Array.from( { length: 20 } ).map( ( _, i ) => {
                 const id = uuidv4();
-                return { id, name: `User ${ i + 1 + this.length }`}
+                return { 
+                    id, 
+                    name: `User ${ i + 1 + this.length }`, 
+                    isEditting: false
+                }
             } );
             this.users = [ ...this.users, ...newUsers ];
             this.length += 20;
             this.loading = false;
         }, 3 * 1000 )
+    }
 
+    saveUser( event: any, user: IUser ): void {
+        console.log( event )
+        user.isEditting = false;
+        user.name = event.name;
     }
 }
