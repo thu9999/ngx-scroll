@@ -1,75 +1,74 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, OnInit, ViewChild } from '@angular/core';
+import { animate, state, style, transition, trigger } from '@angular/animations';
+import { AfterViewInit, Component, OnInit, ViewChild } from '@angular/core';
+import { FormBuilder } from '@angular/forms';
+import { MatTable } from '@angular/material/table';
 import { NgScrollbar } from 'ngx-scrollbar';
-import { v4 as uuidv4 } from 'uuid';
-
-export interface IUser {
-    id: string;
-    name: string;
-    isEditting: boolean;
-}
+import { Observable } from 'rxjs';
+import { IUser } from './users/user';
+import { UserDataSource } from './users/user-data-source';
+import { UserService } from './users/user.service';
 
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss'],
-    //changeDetection: ChangeDetectionStrategy.OnPush,
+    animations: [
+        trigger('detailExpand', [
+          state('collapsed', style({height: '0px', minHeight: '0'})),
+          state('expanded', style({height: '*'})),
+          transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
+        ]),
+      ],
 })
 export class AppComponent implements OnInit, AfterViewInit {
-    @ViewChild(NgScrollbar) scrollRef: NgScrollbar;
-    length = 20;
-    users: IUser[];
-    loading = false;
+    @ViewChild( NgScrollbar ) scrollRef: NgScrollbar;
+    @ViewChild( 'userTable', { static: true } ) userTable: MatTable<any>;
+    userSource: UserDataSource
+    loading$: Observable<boolean>;
+    columnsToDisplay = [ 'id', 'name', 'actions' ];
+    expandedColumnsToDisplay = [ 'age', 'job' ];
+    expandedElement: IUser = null;
+
+    currentId: string = null;
+    isEditting = false;
+
+    constructor( private fb: FormBuilder, private userService: UserService ) {
+    }
+
     ngOnInit(): void {
-        this.users = Array.from( { length: this.length } ).map( ( _, i ) => {
-            const id = uuidv4();
-            return { 
-                id, 
-                name: `User ${ i + 1 }`,
-                isEditting: false
-            }
-        } );
+        this.userSource = new UserDataSource( this.userService );
+        this.loading$ = this.userSource.getLoadingAsObservable();
+        this.userSource.getData();
     }
 
     ngAfterViewInit(): void {
         this.scrollRef.scrolled.subscribe( ( event: any ) => {
             const elem = event.target;
             if ( elem.scrollTop + elem.clientHeight >= elem.scrollHeight ) {
-                this.createUsers();
+                this.userSource.getData();
             }
         } );
     }
 
+    reloadUsers(): void {
+        this.userSource.getData();
+    }
+
     addUser(): void {
-        this.users.unshift( { 
-            id: uuidv4(),
-            name: '',
-            isEditting: true
-        } );
-        this.scrollRef.scrollTo( {
-            top: 0
-        } )
     }
 
     createUsers(): void {
-        this.loading = true;
-        setTimeout( () => {
-            const newUsers = Array.from( { length: 20 } ).map( ( _, i ) => {
-                const id = uuidv4();
-                return { 
-                    id, 
-                    name: `User ${ i + 1 + this.length }`, 
-                    isEditting: false
-                }
-            } );
-            this.users = [ ...this.users, ...newUsers ];
-            this.length += 20;
-            this.loading = false;
-        }, 3 * 1000 )
     }
 
-    saveUser( event: any, user: IUser ): void {
-        console.log( event )
-        user.isEditting = false;
-        user.name = event.name;
+    editUser( user: IUser ): void {
+        this.isEditting = true;
+        this.currentId = user.id;
+    }
+
+    saveUser( event: any ): void {
+    }
+
+    removeUser( id: string ): void {
+        this.userSource.removeItem( id );
     }
 }
